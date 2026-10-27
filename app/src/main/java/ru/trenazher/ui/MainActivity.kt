@@ -106,6 +106,7 @@ class MainActivity : ComponentActivity() {
             when (parts[0]) {
                 "search" -> SearchScreen(
                     repo,
+                    initial = parts.getOrNull(1).orEmpty(),
                     onBack = ::pop,
                     onOpen = { s, q -> push("quiz:${s.code}:one=${q.id}") },
                 )

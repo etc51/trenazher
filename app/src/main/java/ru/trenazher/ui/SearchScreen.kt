@@ -43,8 +43,8 @@ import ru.trenazher.data.Repo
 
 /** Поиск по тексту всех вопросов: полезно, когда помнишь вопрос, но не раздел. */
 @Composable
-fun SearchScreen(repo: Repo, onBack: () -> Unit, onOpen: (Section, Question) -> Unit) {
-    var query by rememberSaveable { mutableStateOf("") }
+fun SearchScreen(repo: Repo, initial: String = "", onBack: () -> Unit, onOpen: (Section, Question) -> Unit) {
+    var query by rememberSaveable { mutableStateOf(initial) }
     var results by remember { mutableStateOf<List<Pair<Section, Question>>?>(null) }
     var loading by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }

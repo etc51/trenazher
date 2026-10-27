@@ -46,6 +46,9 @@ for m in re.finditer(r'<node [^>]*>', xml):
         x1, y1, x2, y2 = map(int, b.groups())
         if x2 > x1 and y2 > y1:
             print((x1 + x2) // 2, (y1 + y2) // 2)
+            break
+PY
+}
 tap() { dump; local xy; xy=$(find_xy "$1" "$2"); [ -z "$xy" ] && return 1; adb shell input tap $xy; sleep "${3:-2}"; }
 tap_text() { tap text "$1" "${2:-2}"; }
 has() { dump; [ -n "$(find_xy "$1" "$2")" ]; }
@@ -146,8 +149,9 @@ tap text "К разделу" 2 || adb shell input keyevent 4
 
 log "6. Поиск"
 start home
-tap text "Найти вопрос" 2 || fail "поиск не открывается"
-adb shell input text "давлен"; sleep 3
+tap text "Найти вопрос" 2 && has text "Поиск вопроса" && ok "поиск открывается" || fail "поиск не открывается"
+# Кириллицу через adb не напечатать: запрос передаём в маршруте.
+start "search:давлен"; sleep 2
 dump; cp /tmp/ui.xml "$OUT/poisk.xml"
 shot poisk
 adb shell input keyevent 111; sleep 1
