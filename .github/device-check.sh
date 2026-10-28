@@ -18,10 +18,16 @@ shot() { STEP=$((STEP+1)); adb exec-out screencap -p > "$OUT/$(printf %02d $STEP
 
 dump() {
   # uiautomator иногда отдаёт пустой снимок, пока экран анимируется: пробуем до трёх раз.
-  for _ in 1 2 3; do
+  for _ in 1 2 3 4 5; do
     adb shell rm -f /sdcard/ui.xml >/dev/null 2>&1
     adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
     adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1 || echo "" > /tmp/ui.xml
+    if grep -q "isn't responding" /tmp/ui.xml; then
+      # Окно «не отвечает» от системного лаунчера эмулятора перекрывает приложение: жмём «Wait».
+      xy=$(grep -o 'text="Wait"[^>]*bounds="\[[0-9]*,[0-9]*\]\[[0-9]*,[0-9]*\]"' /tmp/ui.xml | grep -o '[0-9]*,[0-9]*' | tr ',' ' ' | paste -sd' ' | awk '{print int(($1+$3)/2), int(($2+$4)/2)}')
+      [ -n "$xy" ] && adb shell input tap $xy || adb shell input keyevent 4
+      sleep 2; continue
+    fi
     grep -q "<node" /tmp/ui.xml && return 0
     sleep 1
   done
