@@ -64,6 +64,8 @@ scroll_down() { adb shell input swipe $((W/2)) $((H*2/3)) $((W/2)) $((H/3)) 400;
 tap_text() { tap text "$1" "${2:-2}"; }
 has() { dump; [ -n "$(find_xy "$1" "$2")" ]; }
 has_text() { has text "$1"; }
+# Найти элемент, при необходимости пролистав вниз.
+seen() { for _ in 1 2 3 4; do has "$1" "$2" && return 0; scroll_down; done; return 1; }
 wait_has() { for i in $(seq 1 "${3:-20}"); do has "$1" "$2" && return 0; sleep 1; done; return 1; }
 dismiss_anr() {
   dump
@@ -135,8 +137,8 @@ tap desc "Вариант А" 1 || fail "вариант А не нажимает�
 shot vopros
 layout "вопрос"
 tap text "Ответить" 2 || fail "кнопка Ответить"
-if has textin "верно"; then ok "показан итог ответа"; else fail "нет Верно/Неверно"; fi
-has textin "Основание" && ok "основание показано" || { scroll_down; has textin "Основание" && ok "основание показано" || fail "нет основания"; }
+if seen textin "верно" || has desc "верно"; then ok "показан итог ответа"; else fail "нет Верно/Неверно"; fi
+seen textin "Основание" && ok "основание показано" || fail "нет основания"
 shot otvet
 tap text "Следующий вопрос" 2 || fail "нет Следующий вопрос"
 has textin "Вопрос 2 из" && ok "переход ко второму" || fail "не перешли ко второму"
@@ -144,7 +146,7 @@ has textin "Вопрос 2 из" && ok "переход ко второму" || f
 log "4. Позиция сохраняется после выгрузки"
 adb shell am force-stop $PKG; sleep 1
 start "section:$FIRST"
-has textin "продолжить с вопроса 2" && ok "позиция сохранилась" || fail "позиция потерялась"
+seen textin "продолжить с вопроса 2" && ok "позиция сохранилась" || fail "позиция потерялась"
 
 log "5. Экзамен до конца"
 tap text "Начать экзамен" 3 || fail "экзамен не начинается"
@@ -170,20 +172,12 @@ start "search:лиценз"; sleep 2
 dump; cp /tmp/ui.xml "$OUT/poisk.xml"
 shot poisk
 adb shell input keyevent 111; sleep 1
-python3 - <<'PY' > /tmp/xy
-import re
-xml=open('/tmp/ui.xml',encoding='utf-8',errors='ignore').read()
-for m in re.finditer(r'<node [^>]*clickable="true"[^>]*>', xml):
-    n=m.group(0)
-    b=re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"',n); x1,y1,x2,y2=map(int,b.groups())
-    if y1>300 and 'EditText' not in n: print((x1+x2)//2,(y1+y2)//2); break
-PY
-if [ -s /tmp/xy ]; then adb shell input tap $(cat /tmp/xy); sleep 3; has textin "Вопрос 1 из" && ok "вопрос из поиска открылся" || fail "вопрос из поиска не открылся"; shot iz-poiska; else fail "поиск ничего не нашёл"; fi
+if tap textin " · № " 3; then has textin "Вопрос 1 из" && ok "вопрос из поиска открылся" || fail "вопрос из поиска не открылся"; shot iz-poiska; else fail "поиск ничего не нашёл"; fi
 
 log "7. Настройки и тёмная тема"
 start home --ez settings true
 wait_has text "Настройки" 10 && ok "настройки открыты" || fail "настройки не открылись"
-has text "k@etc51.ru" && ok "почта в контактах" || { scroll_down; has text "k@etc51.ru" && ok "почта в контактах" || fail "нет почты"; }
+seen text "k@etc51.ru" && ok "почта в контактах" || fail "нет почты"
 grep -qi github /tmp/ui.xml && fail "в настройках упомянут GitHub" || true
 shot nastroyki
 tap text "Тёмная" 2 || fail "нет кнопки тёмной темы"

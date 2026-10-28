@@ -197,6 +197,13 @@ private fun QuizContent(repo: Repo, ss: Session, onClose: () -> Unit, onExamDone
         Box(Modifier.weight(1f)) {
             val scroll = rememberScrollState()
             LaunchedEffect(i) { scroll.scrollTo(0) }
+            // После ответа подтягиваем вердикт и основание в поле зрения: на маленьких экранах они ниже края.
+            LaunchedEffect(i, revealed) {
+                if (revealed) {
+                    delay(250)
+                    scroll.animateScrollTo(scroll.maxValue)
+                }
+            }
             Centered(Modifier.verticalScroll(scroll)) {
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)) {
                     QuestionBlock(ss, i, q, chosen, revealed) { opt ->
