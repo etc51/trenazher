@@ -180,6 +180,7 @@ wait_has text "Настройки" 10 && ok "настройки открыты" 
 seen text "k@etc51.ru" && ok "почта в контактах" || fail "нет почты"
 grep -qi github /tmp/ui.xml && fail "в настройках упомянут GitHub" || true
 shot nastroyki
+adb shell input swipe $((W/2)) $((H/3)) $((W/2)) $((H*2/3)) 400; sleep 1
 tap text "Тёмная" 2 || fail "нет кнопки тёмной темы"
 adb shell input keyevent 4; sleep 2
 shot temnaya
