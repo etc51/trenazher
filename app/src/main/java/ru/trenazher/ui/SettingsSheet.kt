@@ -2,6 +2,8 @@ package ru.trenazher.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,7 +28,7 @@ import ru.trenazher.data.Repo
 const val CONTACT_EMAIL = "k@etc51.ru"
 
 /** Настройки: размер текста, тема и сведения о приложении. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsSheet(repo: Repo, onWrite: () -> Unit, onDismiss: () -> Unit) {
     val scale by repo.textScale.collectAsState()
@@ -58,9 +60,13 @@ fun SettingsSheet(repo: Repo, onWrite: () -> Unit, onDismiss: () -> Unit) {
             Spacer(Modifier.height(12.dp))
 
             Text("Оформление", style = MaterialTheme.typography.titleMedium)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 ThemeMode.entries.forEach { m ->
-                    FilterChip(selected = theme == m, onClick = { repo.setTheme(m) }, label = { Text(m.title) })
+                    FilterChip(
+                        selected = theme == m,
+                        onClick = { repo.setTheme(m) },
+                        label = { Text(m.title, maxLines = 1, softWrap = false) },
+                    )
                 }
             }
             Spacer(Modifier.height(20.dp))

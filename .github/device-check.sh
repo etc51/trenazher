@@ -49,7 +49,18 @@ for m in re.finditer(r'<node [^>]*>', xml):
             break
 PY
 }
-tap() { dump; local xy; xy=$(find_xy "$1" "$2"); [ -z "$xy" ] && return 1; adb shell input tap $xy; sleep "${3:-2}"; }
+tap() {
+  # Если элемента не видно, листаем вниз: на маленьких экранах кнопки бывают ниже края.
+  local xy
+  for _ in 1 2 3 4; do
+    dump; xy=$(find_xy "$1" "$2")
+    [ -n "$xy" ] && [ "${xy#* }" -lt $((H*9/10)) ] && { adb shell input tap $xy; sleep "${3:-2}"; return 0; }
+    scroll_down
+  done
+  [ -n "$xy" ] && { adb shell input tap $xy; sleep "${3:-2}"; return 0; }
+  return 1
+}
+scroll_down() { adb shell input swipe $((W/2)) $((H*2/3)) $((W/2)) $((H/3)) 400; sleep 1; }
 tap_text() { tap text "$1" "${2:-2}"; }
 has() { dump; [ -n "$(find_xy "$1" "$2")" ]; }
 has_text() { has text "$1"; }
@@ -60,7 +71,6 @@ dismiss_anr() {
 }
 start() { adb shell am start -S -n $PKG/ru.trenazher.ui.MainActivity --es screen "$1" "${@:2}" >/dev/null; sleep 4; dismiss_anr; }
 crashes() { adb logcat -d -b crash | grep -c "Process: $PKG" || true; }
-scroll_down() { adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 400; sleep 1; }
 
 # Все нажимаемые элементы внутри экрана и не меньше 40dp; тексты не обрезаны за краем.
 layout() {
@@ -71,6 +81,11 @@ W, H, dens, where = int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]), sys.ar
 xml = open('/tmp/ui.xml', encoding='utf-8', errors='ignore').read()
 min_px = 40 * dens / 160
 bad = []
+box = lambda n: tuple(map(int, re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', n).groups()))
+# Элементы, обрезанные краем прокручиваемого списка, — не мелкие кнопки.
+edges = [box(m.group(0)) for m in re.finditer(r'<node [^>]*scrollable="true"[^>]*>', xml)]
+def clipped(x1, y1, x2, y2):
+    return any(abs(x1-a) <= 2 or abs(x2-c) <= 2 or abs(y1-b) <= 2 or abs(y2-d) <= 2 for a, b, c, d in edges)
 for m in re.finditer(r'<node [^>]*>', xml):
     n = m.group(0)
     if 'package="ru.etc51.trenazher"' not in n: continue
@@ -78,7 +93,7 @@ for m in re.finditer(r'<node [^>]*>', xml):
     x1, y1, x2, y2 = map(int, b.groups())
     name = html.unescape((re.search(r' text="([^"]*)"', n).group(1) or re.search(r'content-desc="([^"]*)"', n).group(1)))[:40]
     if x1 < 0 or x2 > W: bad.append(f"за краем по ширине: «{name}» {x1}..{x2}")
-    if 'clickable="true"' in n and y2 > y1 and y2 < H and (x2 - x1 < min_px or y2 - y1 < min_px) and y1 > 0:
+    if 'clickable="true"' in n and y2 > y1 and y2 < H and (x2 - x1 < min_px or y2 - y1 < min_px) and y1 > 0 and not clipped(x1, y1, x2, y2):
         bad.append(f"мелкая кнопка {x2-x1}x{y2-y1}px: «{name}»")
 for x in bad[:10]: print(f"ПРОВАЛ: {where}: {x}")
 if not bad: print(f"ok: {where}: раскладка в порядке")
@@ -120,7 +135,7 @@ tap desc "Вариант А" 1 || fail "вариант А не нажимает�
 shot vopros
 layout "вопрос"
 tap text "Ответить" 2 || fail "кнопка Ответить"
-if has text "Верно" || has text "Неверно"; then ok "показан итог ответа"; else fail "нет Верно/Неверно"; fi
+if has textin "верно"; then ok "показан итог ответа"; else fail "нет Верно/Неверно"; fi
 has textin "Основание" && ok "основание показано" || { scroll_down; has textin "Основание" && ok "основание показано" || fail "нет основания"; }
 shot otvet
 tap text "Следующий вопрос" 2 || fail "нет Следующий вопрос"
@@ -151,7 +166,7 @@ log "6. Поиск"
 start home
 tap text "Найти вопрос" 2 && has text "Поиск вопроса" && ok "поиск открывается" || fail "поиск не открывается"
 # Кириллицу через adb не напечатать: запрос передаём в маршруте.
-start "search:давлен"; sleep 2
+start "search:лиценз"; sleep 2
 dump; cp /tmp/ui.xml "$OUT/poisk.xml"
 shot poisk
 adb shell input keyevent 111; sleep 1
