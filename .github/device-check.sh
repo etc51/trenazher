@@ -69,7 +69,7 @@ seen() { for _ in 1 2 3 4; do has "$1" "$2" && return 0; scroll_down; done; retu
 wait_has() { for i in $(seq 1 "${3:-20}"); do has "$1" "$2" && return 0; sleep 1; done; return 1; }
 dismiss_anr() {
   dump
-  if grep -q "isn't responding" /tmp/ui.xml; then info "системное окно ANR, закрываю"; tap_text "Wait" || adb shell input keyevent 4; fi
+  if grep -q "isn't responding\|не отвечает" /tmp/ui.xml; then info "системное окно ANR, закрываю"; xy=$(find_xy textin "Wait"); [ -n "$xy" ] && adb shell input tap $xy || adb shell input keyevent 4; sleep 2; fi
 }
 start() { adb shell am start -S -n $PKG/ru.trenazher.ui.MainActivity --es screen "$1" "${@:2}" >/dev/null; sleep 4; dismiss_anr; }
 crashes() { adb logcat -d -b crash | grep -c "Process: $PKG" || true; }
@@ -114,6 +114,8 @@ adb install -r "$APK" || { fail "APK не устанавливается"; exit 
 DEBUG=0; adb shell run-as $PKG true 2>/dev/null && DEBUG=1
 seed() { [ $DEBUG = 1 ] && adb shell am broadcast -n $PKG/ru.trenazher.debug.DemoDataReceiver -a ru.trenazher.debug.$1 >/dev/null; sleep 2; }
 seed CLEAR
+# Эмулятор после загрузки иногда показывает окно «не отвечает» системного интерфейса: даём ему успокоиться.
+for _ in 1 2 3 4 5 6; do sleep 5; dismiss_anr; done
 
 log "1. Главный экран"
 start home
